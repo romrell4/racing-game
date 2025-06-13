@@ -318,10 +318,10 @@ class Car {
 class Track {
     constructor() {
         this.checkpoints = [
-            { x: 700, y: 300, width: 60, height: 15, id: 0, passed: false },
-            { x: 400, y: 100, width: 15, height: 60, id: 1, passed: false },
-            { x: 100, y: 300, width: 60, height: 15, id: 2, passed: false },
-            { x: 400, y: 500, width: 15, height: 60, id: 3, passed: false }
+            { x: 700, y: 300, width: 60, height: 15, id: 0 },
+            { x: 400, y: 100, width: 15, height: 60, id: 1 },
+            { x: 100, y: 300, width: 60, height: 15, id: 2 },
+            { x: 400, y: 500, width: 15, height: 60, id: 3 }
         ];
         
         this.walls = [
@@ -340,7 +340,7 @@ class Track {
         ];
     }
     
-    draw(ctx) {
+    draw(ctx, cars = []) {
         // Draw track background
         ctx.fillStyle = '#444';
         ctx.fillRect(0, 0, 800, 600);
@@ -351,11 +351,68 @@ class Track {
             ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
         });
         
-        // Draw checkpoints
+        // Draw checkpoints with player-specific indicators
         this.checkpoints.forEach((checkpoint, i) => {
-            ctx.fillStyle = checkpoint.passed ? '#4f4' : '#ff4';
+            // Determine checkpoint orientation (horizontal or vertical)
+            const isHorizontal = checkpoint.width > checkpoint.height;
+            
+            // Main checkpoint body (always yellow)
+            ctx.fillStyle = '#ff4'; // Yellow
             ctx.fillRect(checkpoint.x - checkpoint.width/2, checkpoint.y - checkpoint.height/2, 
                        checkpoint.width, checkpoint.height);
+            
+            // Get player progress and colors
+            const player = cars.length > 0 ? cars[0] : null;
+            const ai = cars.length > 1 ? cars[1] : null;
+            
+            const playerPassed = player && player.checkpointsPassed.has(checkpoint.id);
+            const aiPassed = ai && ai.checkpointsPassed.has(checkpoint.id);
+            
+            const playerColor = player ? player.color : '#0000ff'; // Default to blue if no player
+            const aiColor = ai ? ai.color : '#ff0000'; // Default to red if no AI
+            
+            // Draw player indicators
+            if (isHorizontal) {
+                // For horizontal checkpoints, add indicators on left and right sides
+                
+                // Player indicator (left side)
+                ctx.fillStyle = playerPassed ? playerColor : '#aaa'; // Car color if passed, gray if not
+                ctx.fillRect(
+                    checkpoint.x - checkpoint.width/2, 
+                    checkpoint.y - checkpoint.height/2,
+                    checkpoint.width * 0.2, // 20% of the width 
+                    checkpoint.height
+                );
+                
+                // AI indicator (right side)
+                ctx.fillStyle = aiPassed ? aiColor : '#aaa'; // Car color if passed, gray if not
+                ctx.fillRect(
+                    checkpoint.x + checkpoint.width/2 - checkpoint.width * 0.2, 
+                    checkpoint.y - checkpoint.height/2,
+                    checkpoint.width * 0.2, // 20% of the width
+                    checkpoint.height
+                );
+            } else {
+                // For vertical checkpoints, add indicators on top and bottom
+                
+                // Player indicator (top)
+                ctx.fillStyle = playerPassed ? playerColor : '#aaa'; // Car color if passed, gray if not
+                ctx.fillRect(
+                    checkpoint.x - checkpoint.width/2,
+                    checkpoint.y - checkpoint.height/2,
+                    checkpoint.width,
+                    checkpoint.height * 0.2 // 20% of the height
+                );
+                
+                // AI indicator (bottom)
+                ctx.fillStyle = aiPassed ? aiColor : '#aaa'; // Car color if passed, gray if not
+                ctx.fillRect(
+                    checkpoint.x - checkpoint.width/2,
+                    checkpoint.y + checkpoint.height/2 - checkpoint.height * 0.2,
+                    checkpoint.width,
+                    checkpoint.height * 0.2 // 20% of the height
+                );
+            }
             
             // Checkpoint numbers
             ctx.fillStyle = '#000';
@@ -387,7 +444,6 @@ class Track {
                 
                 if (Math.abs(dx) < checkpoint.width/2 && Math.abs(dy) < checkpoint.height/2) {
                     car.checkpointsPassed.add(checkpoint.id);
-                    checkpoint.passed = true;
                     
                     // Check if lap completed
                     if (car.checkpointsPassed.size === this.checkpoints.length) {
@@ -408,9 +464,6 @@ class Track {
         car.lap++;
         car.checkpointsPassed.clear();
         car.lapStartTime = Date.now();
-        
-        // Reset checkpoint visual state
-        this.checkpoints.forEach(cp => cp.passed = false);
         
         if (car.lap > car.totalLaps) {
             car.finished = true;
@@ -499,7 +552,6 @@ class Game {
             new Car(400, 400, '#0000ff', false), // Player car
             new Car(400, 425, '#ff0000', true), // AI car with original position
         ];
-        this.track.checkpoints.forEach(cp => cp.passed = false);
         this.gameStartTime = Date.now();
     }
     
@@ -544,7 +596,7 @@ class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        this.track.draw(this.ctx);
+        this.track.draw(this.ctx, this.cars);
         
         this.cars.forEach(car => {
             car.draw(this.ctx);
