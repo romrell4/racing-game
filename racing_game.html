@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            background: #2a2a2a;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        
+        .info {
+            margin-top: 10px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .stats {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            font-size: 16px;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 2px;
+        }
+        
+        .ai-ready {
+            margin-top: 20px;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Racing Game</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="controls">
+            <div>Use ARROW KEYS or WASD to drive</div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Speed</div>
+                <div id="speed">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Lap</div>
+                <div id="lap">1/3</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Best Time</div>
+                <div id="bestTime">--:--</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Current Time</div>
+                <div id="currentTime">00:00</div>
+            </div>
+        </div>
+        
+        <div class="info">
+            Press R to reset • Drive through checkpoints to complete laps
+        </div>
+        
+        <div class="ai-ready">
+            🤖 AI-Ready Architecture: The Car class has a separate drive() method that can be overridden for AI agents
+        </div>
+    </div>
+
+    <script>
+        class Vector2 {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+            
+            add(v) { return new Vector2(this.x + v.x, this.y + v.y); }
+            subtract(v) { return new Vector2(this.x - v.x, this.y - v.y); }
+            multiply(s) { return new Vector2(this.x * s, this.y * s); }
+            length() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+            normalize() { 
+                const len = this.length();
+                return len > 0 ? new Vector2(this.x / len, this.y / len) : new Vector2(0, 0);
+            }
+            dot(v) { return this.x * v.x + this.y * v.y; }
+        }
+
+        class Car {
+            constructor(x = 400, y = 400, color = '#0000ff', isAI = false) {
+                this.position = new Vector2(x, y);
+                this.velocity = new Vector2(0, 0);
+                this.angle = 0;
+                this.speed = 0;
+                this.maxSpeed = 8;
+                this.acceleration = 0.3;
+                this.friction = 0.95;
+                this.turnSpeed = 0.05;
+                this.width = 20;
+                this.height = 10;
+                this.color = color;
+                this.isAI = isAI;
+                
+                // Racing stats
+                this.lap = 1;
+                this.checkpointsPassed = new Set();
+                this.lapStartTime = Date.now();
+                this.bestLapTime = null;
+                this.totalLaps = 3;
+                this.finished = false;
+            }
+            
+            // This method can be overridden for AI agents
+            drive(input, trackData) {
+                if (this.isAI) {
+                    // AI driving logic will go here
+                    this.aiDrive(trackData);
+                } else {
+                    // Human player controls
+                    this.humanDrive(input);
+                }
+            }
+            
+            humanDrive(input) {
+                // Acceleration/Deceleration
+                if (input.up) {
+                    this.speed += this.acceleration;
+                } else if (input.down) {
+                    this.speed -= this.acceleration * 0.7;
+                } else {
+                    this.speed *= 0.98; // Gradual slowdown
+                }
+                
+                // Turning (only when moving)
+                if (Math.abs(this.speed) > 0.1) {
+                    if (input.left) {
+                        this.angle -= this.turnSpeed * Math.abs(this.speed) / this.maxSpeed;
+                    }
+                    if (input.right) {
+                        this.angle += this.turnSpeed * Math.abs(this.speed) / this.maxSpeed;
+                    }
+                }
+                
+                // Speed limits
+                this.speed = Math.max(-this.maxSpeed * 0.5, Math.min(this.maxSpeed, this.speed));
+            }
+            
+            // Placeholder for AI driving - ready for AI implementation
+            aiDrive(trackData) {
+                // AI agents will implement their logic here
+                // They'll have access to:
+                // - this.position (current position)
+                // - this.angle (current rotation)
+                // - this.speed (current speed)
+                // - trackData (track information, checkpoints, etc.)
+                
+                // For now, simple forward movement as placeholder
+                this.speed += this.acceleration * 0.5;
+                this.speed = Math.min(this.maxSpeed * 0.7, this.speed);
+            }
+            
+            update() {
+                // Apply physics
+                this.velocity.x = Math.cos(this.angle) * this.speed;
+                this.velocity.y = Math.sin(this.angle) * this.speed;
+                
+                this.position = this.position.add(this.velocity);
+                this.velocity = this.velocity.multiply(this.friction);
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.position.x, this.position.y);
+                ctx.rotate(this.angle);
+                
+                // Car body
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                // Car details
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-this.width/2 + 3, -this.height/2 + 1, this.width - 6, 2);
+                ctx.fillRect(-this.width/2 + 3, this.height/2 - 3, this.width - 6, 2);
+                
+                // Direction indicator
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(this.width/2 - 3, -2, 4, 4);
+                
+                ctx.restore();
+            }
+            
+            getCorners() {
+                const cos = Math.cos(this.angle);
+                const sin = Math.sin(this.angle);
+                const hw = this.width / 2;
+                const hh = this.height / 2;
+                
+                return [
+                    new Vector2(this.position.x + cos * hw - sin * hh, this.position.y + sin * hw + cos * hh),
+                    new Vector2(this.position.x - cos * hw - sin * hh, this.position.y - sin * hw + cos * hh),
+                    new Vector2(this.position.x - cos * hw + sin * hh, this.position.y - sin * hw - cos * hh),
+                    new Vector2(this.position.x + cos * hw + sin * hh, this.position.y + sin * hw - cos * hh)
+                ];
+            }
+        }
+
+        class Track {
+            constructor() {
+                this.checkpoints = [
+                    { x: 700, y: 300, width: 60, height: 15, id: 0, passed: false },
+                    { x: 400, y: 100, width: 15, height: 60, id: 1, passed: false },
+                    { x: 100, y: 300, width: 60, height: 15, id: 2, passed: false },
+                    { x: 400, y: 500, width: 15, height: 60, id: 3, passed: false }
+                ];
+                
+                this.walls = [
+                    // Outer walls
+                    { x: 0, y: 0, width: 800, height: 20 },
+                    { x: 0, y: 580, width: 800, height: 20 },
+                    { x: 0, y: 0, width: 20, height: 600 },
+                    { x: 780, y: 0, width: 20, height: 600 },
+                    
+                    // Inner obstacles
+                    { x: 200, y: 150, width: 120, height: 20 },
+                    { x: 480, y: 150, width: 120, height: 20 },
+                    { x: 200, y: 430, width: 120, height: 20 },
+                    { x: 480, y: 430, width: 120, height: 20 },
+                    { x: 350, y: 250, width: 100, height: 100 }
+                ];
+            }
+            
+            draw(ctx) {
+                // Draw track background
+                ctx.fillStyle = '#444';
+                ctx.fillRect(0, 0, 800, 600);
+                
+                // Draw walls
+                ctx.fillStyle = '#666';
+                this.walls.forEach(wall => {
+                    ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+                });
+                
+                // Draw checkpoints
+                this.checkpoints.forEach((checkpoint, i) => {
+                    ctx.fillStyle = checkpoint.passed ? '#4f4' : '#ff4';
+                    ctx.fillRect(checkpoint.x - checkpoint.width/2, checkpoint.y - checkpoint.height/2, 
+                               checkpoint.width, checkpoint.height);
+                    
+                    // Checkpoint numbers
+                    ctx.fillStyle = '#000';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(i + 1, checkpoint.x, checkpoint.y + 4);
+                });
+            }
+            
+            checkCollisions(car) {
+                const corners = car.getCorners();
+                
+                for (let wall of this.walls) {
+                    for (let corner of corners) {
+                        if (corner.x >= wall.x && corner.x <= wall.x + wall.width &&
+                            corner.y >= wall.y && corner.y <= wall.y + wall.height) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            checkCheckpoints(car) {
+                for (let checkpoint of this.checkpoints) {
+                    if (!car.checkpointsPassed.has(checkpoint.id)) {
+                        const dx = car.position.x - checkpoint.x;
+                        const dy = car.position.y - checkpoint.y;
+                        
+                        if (Math.abs(dx) < checkpoint.width/2 && Math.abs(dy) < checkpoint.height/2) {
+                            car.checkpointsPassed.add(checkpoint.id);
+                            checkpoint.passed = true;
+                            
+                            // Check if lap completed
+                            if (car.checkpointsPassed.size === this.checkpoints.length) {
+                                this.completeLap(car);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            completeLap(car) {
+                const lapTime = Date.now() - car.lapStartTime;
+                
+                if (!car.bestLapTime || lapTime < car.bestLapTime) {
+                    car.bestLapTime = lapTime;
+                }
+                
+                car.lap++;
+                car.checkpointsPassed.clear();
+                car.lapStartTime = Date.now();
+                
+                // Reset checkpoint visual state
+                this.checkpoints.forEach(cp => cp.passed = false);
+                
+                if (car.lap > car.totalLaps) {
+                    car.finished = true;
+                }
+            }
+            
+            getTrackData() {
+                return {
+                    checkpoints: this.checkpoints,
+                    walls: this.walls,
+                    width: 800,
+                    height: 600
+                };
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.track = new Track();
+                
+                // Create player car (ready to add AI cars later)
+                this.cars = [
+                    new Car() // Player car
+                ];
+                
+                this.input = {
+                    up: false,
+                    down: false,
+                    left: false,
+                    right: false
+                };
+                
+                this.gameStartTime = Date.now();
+                this.setupEventListeners();
+                this.gameLoop();
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp':
+                        case 'KeyW':
+                            this.input.up = true;
+                            break;
+                        case 'ArrowDown':
+                        case 'KeyS':
+                            this.input.down = true;
+                            break;
+                        case 'ArrowLeft':
+                        case 'KeyA':
+                            this.input.left = true;
+                            break;
+                        case 'ArrowRight':
+                        case 'KeyD':
+                            this.input.right = true;
+                            break;
+                        case 'KeyR':
+                            this.resetGame();
+                            break;
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    switch(e.code) {
+                        case 'ArrowUp':
+                        case 'KeyW':
+                            this.input.up = false;
+                            break;
+                        case 'ArrowDown':
+                        case 'KeyS':
+                            this.input.down = false;
+                            break;
+                        case 'ArrowLeft':
+                        case 'KeyA':
+                            this.input.left = false;
+                            break;
+                        case 'ArrowRight':
+                        case 'KeyD':
+                            this.input.right = false;
+                            break;
+                    }
+                });
+            }
+            
+            resetGame() {
+                this.cars[0] = new Car();
+                this.track.checkpoints.forEach(cp => cp.passed = false);
+                this.gameStartTime = Date.now();
+            }
+            
+            // Method to add AI cars - ready for future implementation
+            addAICar(x, y, color) {
+                this.cars.push(new Car(x, y, color, true));
+            }
+            
+            update() {
+                const trackData = this.track.getTrackData();
+                
+                this.cars.forEach(car => {
+                    if (!car.finished) {
+                        // Each car drives according to its type (human or AI)
+                        car.drive(this.input, trackData);
+                        car.update();
+                        
+                        // Check collisions
+                        if (this.track.checkCollisions(car)) {
+                            // Simple collision response - bounce back
+                            car.position = car.position.subtract(car.velocity.multiply(2));
+                            car.speed *= -0.3;
+                        }
+                        
+                        // Check checkpoints
+                        this.track.checkCheckpoints(car);
+                    }
+                });
+                
+                this.updateUI();
+            }
+            
+            updateUI() {
+                const playerCar = this.cars[0];
+                document.getElementById('speed').textContent = Math.round(Math.abs(playerCar.speed * 10));
+                document.getElementById('lap').textContent = `${Math.min(playerCar.lap, playerCar.totalLaps)}/${playerCar.totalLaps}`;
+                
+                if (playerCar.bestLapTime) {
+                    const bestTime = (playerCar.bestLapTime / 1000).toFixed(2);
+                    document.getElementById('bestTime').textContent = bestTime + 's';
+                }
+                
+                const currentTime = ((Date.now() - playerCar.lapStartTime) / 1000).toFixed(1);
+                document.getElementById('currentTime').textContent = currentTime + 's';
+            }
+            
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.track.draw(this.ctx);
+                
+                this.cars.forEach(car => {
+                    car.draw(this.ctx);
+                });
+                
+                // Draw finish message
+                if (this.cars[0].finished) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    this.ctx.fillRect(0, 0, 800, 600);
+                    
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '48px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('Race Finished!', 400, 280);
+                    
+                    this.ctx.font = '24px Arial';
+                    this.ctx.fillText('Press R to race again', 400, 320);
+                    
+                    if (this.cars[0].bestLapTime) {
+                        const bestTime = (this.cars[0].bestLapTime / 1000).toFixed(2);
+                        this.ctx.fillText(`Best Lap: ${bestTime}s`, 400, 360);
+                    }
+                }
+            }
+            
+            gameLoop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // Start the game
+        const game = new Game();
+    </script>
+</body>
+</html>
