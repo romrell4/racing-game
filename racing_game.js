@@ -37,6 +37,7 @@ class Car {
         this.bestLapTime = null;
         this.totalLaps = 3;
         this.finished = false;
+        this.checkpointImmunity = 0; // Frames of immunity after lap completion
     }
     
     // This method can be overridden for AI agents
@@ -437,6 +438,12 @@ class Track {
     }
     
     checkCheckpoints(car) {
+        // Decrease immunity counter if it's active
+        if (car.checkpointImmunity > 0) {
+            car.checkpointImmunity--;
+            return; // Skip checkpoint checks during immunity period
+        }
+        
         for (let checkpoint of this.checkpoints) {
             if (!car.checkpointsPassed.has(checkpoint.id)) {
                 const dx = car.position.x - checkpoint.x;
@@ -464,6 +471,9 @@ class Track {
         car.lap++;
         car.checkpointsPassed.clear();
         car.lapStartTime = Date.now();
+        
+        // Add checkpoint immunity to prevent immediate checkpoint registration
+        car.checkpointImmunity = 30; // Immunity for 30 frames (~0.5 seconds)
         
         if (car.lap > car.totalLaps) {
             car.finished = true;
